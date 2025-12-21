@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <base href="/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Guarappari web client">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="belluga_learning">
+  <link id="apple-touch-icon" rel="apple-touch-icon" href="icon/icon-192x192.png">
+  <link id="favicon" rel="icon" type="image/png" href="favicon.png">
+  <title>Belluga Boilerplate</title>
+  <link rel="manifest" href="manifest.json">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+
+  <style>
+    #splash-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #ffffff;
+    }
+
+    #splash-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #splash-logo-container {
+      position: relative;
+      width: 220px;
+      height: 160px;
+    }
+
+    .splash-logo {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    #splash-logo-background {
+      opacity: 0.3;
+    }
+
+    #splash-logo-foreground {
+      mask-image: linear-gradient(to right, transparent 20%, black 50%, transparent 80%);
+      mask-size: 200% 100%;
+      animation: shimmer-animation 2s infinite linear;
+    }
+
+    @keyframes shimmer-animation {
+      from {
+        mask-position: 150% 0;
+      }
+
+      to {
+        mask-position: -50% 0;
+      }
+    }
+
+    :root {
+      --branding-primary: #4fa0e3;
+      --branding-shadow: rgba(79, 160, 227, 0.45);
+    }
+
+    #progress-wrapper {
+      margin-top: 32px;
+      width: 240px;
+    }
+
+    .progress-bar__container {
+      width: 100%;
+      height: 1.5rem;
+      border-radius: 0.5rem;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.5s;
+      will-change: transform;
+      box-shadow: 0 0 5px var(--branding-shadow);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .progress-bar {
+      position: absolute;
+      height: 100%;
+      width: 100%;
+      content: "";
+      background-color: var(--branding-primary);
+      top: 0;
+      bottom: 0;
+      left: 0;
+      border-radius: inherit;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-family: sans-serif;
+      transform: translateX(-100%);
+      transition: transform 0.6s ease-in-out;
+    }
+
+    .progress-bar__text {
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+  </style>
+
+<script>
+  window.addEventListener('DOMContentLoaded', (event) => {
+    // Host-based routing safety (pre-Flutter).
+    // - Tenant hosts must never render landlord routes even via direct navigation.
+    // - Landlord host must never render tenant-only routes even via direct navigation.
+    // This protects against stale cached builds (where guards might not exist yet).
+    const landlordHost = 'belluga.app';
+    const hostname = window.location.hostname;
+    const pathname = window.location.pathname || '/';
+    const isTenantHost =
+      hostname.endsWith('.' + landlordHost) && hostname !== landlordHost;
+    const isLandlordHost = hostname === landlordHost;
+
+    if (isTenantHost && pathname.startsWith('/landlord')) {
+      window.location.replace('/');
+      return;
+    }
+
+    if (isLandlordHost && pathname.startsWith('/home')) {
+      window.location.replace('/landlord');
+      return;
+    }
+
+    const applyBranding = (branding) => {
+      if (!branding) return;
+
+      document.title = branding.name || document.title;
+      const primarySeedColor = branding.theme_data_settings?.primary_seed_color;
+      
+      // Web splash should be full branding primary, matching the in-app splash behavior.
+      if (primarySeedColor) {
+        const splashScreen = document.getElementById('splash-screen');
+        if (splashScreen) {
+          splashScreen.style.backgroundColor = primarySeedColor;
+        }
+      }
+
+      if (primarySeedColor) {
+        const root = document.documentElement;
+        root.style.setProperty('--branding-primary', primarySeedColor);
+        root.style.setProperty('--branding-shadow', primarySeedColor + '66');
+      }
+    };
+
+    (async function () {
+      // Cache disabled: always fetch fresh `/environment` data.
+      let resolvedBranding = null;
+      try {
+        const response = await fetch('/environment');
+        if (response.ok) {
+          const freshBranding = await response.json();
+          resolvedBranding = freshBranding;
+          applyBranding(freshBranding);
+        }
+      } catch (error) {
+        // Ignore network failures; Flutter will fall back.
+      } finally {
+        // Persist the resolved payload on the global scope so Flutter can read it even if it
+        // attaches the `brandingReady` listener after this event is dispatched.
+        window.__brandingPayload = resolvedBranding;
+
+        window.dispatchEvent(new CustomEvent('brandingReady', { detail: resolvedBranding }));
+      }
+    })();
+  });
+</script>
+</head>
+
+<body>
+  <div id="splash-screen" class="splash">
+    <div id="splash-content">
+      <div id="splash-logo-container">
+        <img id="splash-logo-background" src="logo-light.png" class="splash-logo" alt="Logo background" />
+        <img id="splash-logo-foreground" src="logo-light.png" class="splash-logo" alt="Logo foreground" />
+      </div>
+      <div id="progress-wrapper">
+          <div class="progress-bar__container">
+            <div class="progress-bar" id="progress-bar">
+              <span class="progress-bar__text" id="progress-text">Iniciando...</span>
+            </div>
+          </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const progressBar = document.getElementById('progress-bar');
+      const progressText = document.getElementById('progress-text');
+
+      function updateProgress(percent) {
+        if (!progressBar) return;
+        const clamped = Math.max(0, Math.min(100, percent));
+        const translate = clamped - 100; // start at -100%, end at 0%
+        progressBar.style.transform = `translateX(${translate}%)`;
+      }
+
+      function setProgressLabel(label) {
+        if (progressText) {
+          progressText.textContent = label;
+        }
+      }
+
+      window.__appProgressUpdate = updateProgress;
+      window.__appProgressLabel = setProgressLabel;
+    })();
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+
+</html>
