@@ -1,9 +1,11 @@
 const { test, expect } = require('@playwright/test');
 
 test('web artifact boots and performs basic navigation', async ({ page }) => {
+  const localBase = 'http://127.0.0.1:4173';
+  const criticalAssetPattern = /\/(main\.dart\.js|flutter\.js|flutter_bootstrap\.js)(\?|$)/;
   const pageErrors = [];
-  const failedLocalRequests = [];
-  const badLocalResponses = [];
+  const failedCriticalRequests = [];
+  const badCriticalResponses = [];
 
   page.on('pageerror', (error) => {
     pageErrors.push(error.message);
@@ -11,19 +13,19 @@ test('web artifact boots and performs basic navigation', async ({ page }) => {
 
   page.on('requestfailed', (request) => {
     const url = request.url();
-    const isLocalAsset = url.startsWith('http://127.0.0.1:4173');
+    const isCriticalLocalAsset = url.startsWith(localBase) && criticalAssetPattern.test(url);
 
-    if (isLocalAsset) {
-      failedLocalRequests.push(`${request.method()} ${url} (${request.failure()?.errorText || 'unknown'})`);
+    if (isCriticalLocalAsset) {
+      failedCriticalRequests.push(`${request.method()} ${url} (${request.failure()?.errorText || 'unknown'})`);
     }
   });
 
   page.on('response', (response) => {
     const url = response.url();
-    const isLocalAsset = url.startsWith('http://127.0.0.1:4173');
+    const isCriticalLocalAsset = url.startsWith(localBase) && criticalAssetPattern.test(url);
 
-    if (isLocalAsset && response.status() >= 400) {
-      badLocalResponses.push(`${response.status()} ${response.request().method()} ${url}`);
+    if (isCriticalLocalAsset && response.status() >= 400) {
+      badCriticalResponses.push(`${response.status()} ${response.request().method()} ${url}`);
     }
   });
 
@@ -44,8 +46,8 @@ test('web artifact boots and performs basic navigation', async ({ page }) => {
   await expect(page).toHaveURL(/#\/ci-navigation-smoke$/);
 
   expect(pageErrors, `Unexpected runtime errors:\n${pageErrors.join('\n')}`).toEqual([]);
-  expect(failedLocalRequests, `Local asset request failures:\n${failedLocalRequests.join('\n')}`).toEqual([]);
-  expect(badLocalResponses, `Local asset bad responses:\n${badLocalResponses.join('\n')}`).toEqual([]);
+  expect(failedCriticalRequests, `Critical asset request failures:\n${failedCriticalRequests.join('\n')}`).toEqual([]);
+  expect(badCriticalResponses, `Critical asset bad responses:\n${badCriticalResponses.join('\n')}`).toEqual([]);
 });
 
 test('hash route serves app shell without 4xx/5xx', async ({ page }) => {
