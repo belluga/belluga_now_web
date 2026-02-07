@@ -1,0 +1,12 @@
+{
+  "name": "belluga-now-web-navigation-validation",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test:navigation": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "http-server": "^14.1.1"
+  }
+}
