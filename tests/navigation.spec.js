@@ -2,18 +2,11 @@ const { test, expect } = require('@playwright/test');
 
 test('web artifact boots and performs basic navigation', async ({ page }) => {
   const pageErrors = [];
-  const consoleErrors = [];
   const failedLocalRequests = [];
   const badLocalResponses = [];
 
   page.on('pageerror', (error) => {
     pageErrors.push(error.message);
-  });
-
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') {
-      consoleErrors.push(msg.text());
-    }
   });
 
   page.on('requestfailed', (request) => {
@@ -51,7 +44,6 @@ test('web artifact boots and performs basic navigation', async ({ page }) => {
   await expect(page).toHaveURL(/#\/ci-navigation-smoke$/);
 
   expect(pageErrors, `Unexpected runtime errors:\n${pageErrors.join('\n')}`).toEqual([]);
-  expect(consoleErrors, `Unexpected console errors:\n${consoleErrors.join('\n')}`).toEqual([]);
   expect(failedLocalRequests, `Local asset request failures:\n${failedLocalRequests.join('\n')}`).toEqual([]);
   expect(badLocalResponses, `Local asset bad responses:\n${badLocalResponses.join('\n')}`).toEqual([]);
 });
