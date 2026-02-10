@@ -7,6 +7,17 @@ test('web artifact boots and performs basic navigation', async ({ page }) => {
   const failedCriticalRequests = [];
   const badCriticalResponses = [];
 
+  // Guardrail: the published web bundle must never contain legacy hardcoded fallbacks
+  // (e.g. boilerplate.belluga.space). These are unacceptable because they silently route
+  // users to the wrong backend when environment/bootstrap fails.
+  const jsResponse = await page.request.get(`${localBase}/main.dart.js`);
+  expect(jsResponse.ok(), 'main.dart.js must be fetchable from the local web server').toBeTruthy();
+  const jsText = await jsResponse.text();
+  expect(
+    jsText.includes('boilerplate.belluga.space'),
+    'main.dart.js must not contain boilerplate.belluga.space fallback'
+  ).toBeFalsy();
+
   // The built artifact runs a pre-Flutter branding fetch against the landlord host.
   // CI must not rely on external network and must remain deterministic.
   await page.route('**/api/v1/environment*', async (route) => {
