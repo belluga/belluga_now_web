@@ -1,26 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test('web artifact boots and performs basic navigation', async ({ page }) => {
-  const localBase = 'http://127.0.0.1:4173';
-  const criticalAssetPattern = /\/(main\.dart\.js|flutter\.js|flutter_bootstrap\.js)(\?|$)/;
-  const pageErrors = [];
-  const failedCriticalRequests = [];
-  const badCriticalResponses = [];
-
-  // Guardrail: the published web bundle must never contain legacy hardcoded fallbacks
-  // (e.g. boilerplate.belluga.space). These are unacceptable because they silently route
-  // users to the wrong backend when environment/bootstrap fails.
-  const jsResponse = await page.request.get(`${localBase}/main.dart.js`);
-  expect(jsResponse.ok(), 'main.dart.js must be fetchable from the local web server').toBeTruthy();
-  const jsText = await jsResponse.text();
-  expect(
-    jsText.includes('boilerplate.belluga.space'),
-    'main.dart.js must not contain boilerplate.belluga.space fallback'
-  ).toBeFalsy();
-
-  // The web bootstrap depends on `/api/v1/environment` (host/origin), and the app
-  // issues an anonymous identity during startup. In CI we serve only static files,
-  // so these endpoints must be mocked to keep navigation validation deterministic.
+async function installCiBootstrapMocks(page, localBase) {
   const mockEnvironmentPayload = {
     type: 'landlord',
     name: 'CI',
@@ -49,6 +29,30 @@ test('web artifact boots and performs basic navigation', async ({ page }) => {
       })
     });
   });
+}
+
+test('web artifact boots and performs basic navigation', async ({ page }) => {
+  const localBase = 'http://127.0.0.1:4173';
+  const criticalAssetPattern = /\/(main\.dart\.js|flutter\.js|flutter_bootstrap\.js)(\?|$)/;
+  const pageErrors = [];
+  const failedCriticalRequests = [];
+  const badCriticalResponses = [];
+
+  // Guardrail: the published web bundle must never contain legacy hardcoded fallbacks
+  // (e.g. boilerplate.belluga.space). These are unacceptable because they silently route
+  // users to the wrong backend when environment/bootstrap fails.
+  const jsResponse = await page.request.get(`${localBase}/main.dart.js`);
+  expect(jsResponse.ok(), 'main.dart.js must be fetchable from the local web server').toBeTruthy();
+  const jsText = await jsResponse.text();
+  expect(
+    jsText.includes('boilerplate.belluga.space'),
+    'main.dart.js must not contain boilerplate.belluga.space fallback'
+  ).toBeFalsy();
+
+  // The web bootstrap depends on `/api/v1/environment` (host/origin), and the app
+  // issues an anonymous identity during startup. In CI we serve only static files,
+  // so these endpoints must be mocked to keep navigation validation deterministic.
+  await installCiBootstrapMocks(page, localBase);
 
   page.on('pageerror', (error) => {
     pageErrors.push(error.message);
@@ -111,6 +115,9 @@ test('web artifact boots and performs basic navigation', async ({ page }) => {
 });
 
 test('deep link serves app shell without 4xx/5xx', async ({ page }) => {
+  const localBase = 'http://127.0.0.1:4173';
+  await installCiBootstrapMocks(page, localBase);
+
   // Ensure the server behaves like production nginx `try_files ... /index.html`.
   const routeResponse = await page.goto('/landlord', { waitUntil: 'domcontentloaded' });
   expect(routeResponse, 'Route response should be available').not.toBeNull();
