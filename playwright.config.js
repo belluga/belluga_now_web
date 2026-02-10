@@ -13,7 +13,8 @@ module.exports = defineConfig({
     screenshot: 'only-on-failure'
   },
   webServer: {
-    command: 'npx http-server . -p 4173 -c-1',
+    // Flutter web uses PathUrlStrategy; CI needs an SPA-capable static server (history fallback).
+    command: 'npx serve -s . -l 4173',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 120000

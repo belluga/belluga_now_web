@@ -241,6 +241,31 @@
 
       window.__appProgressUpdate = updateProgress;
       window.__appProgressLabel = setProgressLabel;
+
+      const removeSplash = () => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) splash.remove();
+      };
+
+      // Prefer the first-frame signal when available...
+      window.addEventListener('flutter-first-frame', removeSplash);
+
+      // ...but also remove the splash as soon as Flutter attaches its root element.
+      // In some setups the first-frame event may not fire (or can be missed).
+      const tryRemoveOnFlutterRoot = () => {
+        if (document.querySelector('flt-glass-pane')) {
+          removeSplash();
+          return true;
+        }
+        return false;
+      };
+
+      if (!tryRemoveOnFlutterRoot()) {
+        const observer = new MutationObserver(() => {
+          if (tryRemoveOnFlutterRoot()) observer.disconnect();
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      }
     })();
   </script>
 
