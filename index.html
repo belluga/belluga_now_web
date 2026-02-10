@@ -121,8 +121,26 @@
 
 <script>
   window.addEventListener('DOMContentLoaded', (event) => {
+    // Host-based routing safety (pre-Flutter).
+    // - Tenant hosts must never render landlord routes even via direct navigation.
+    // - Landlord host must never render tenant-only routes even via direct navigation.
+    // This protects against stale cached builds (where guards might not exist yet).
+    const landlordHost = 'belluga.app';
     const hostname = window.location.hostname;
     const pathname = window.location.pathname || '/';
+    const isTenantHost =
+      hostname.endsWith('.' + landlordHost) && hostname !== landlordHost;
+    const isLandlordHost = hostname === landlordHost;
+
+    if (isTenantHost && pathname.startsWith('/landlord')) {
+      window.location.replace('/');
+      return;
+    }
+
+    if (isLandlordHost && pathname.startsWith('/home')) {
+      window.location.replace('/landlord');
+      return;
+    }
 
     const applyBranding = (branding) => {
       if (!branding) return;
@@ -161,22 +179,6 @@
       } catch (error) {
         // Ignore network failures; Flutter will fall back.
       } finally {
-        // Route safety without hardcoding any hostnames:
-        // - Tenant env should never render landlord routes even via deep link.
-        // - Landlord env should never render tenant-only routes even via deep link.
-        //
-        // We prefer the backend-resolved environment type over hostname heuristics so this
-        // stays correct for multi-part domains and local dev hosts (nip.io, localhost, etc).
-        const envType = resolvedBranding?.type ?? null;
-        if (envType === 'tenant' && pathname.startsWith('/landlord')) {
-          window.location.replace('/');
-          return;
-        }
-        if (envType === 'landlord' && pathname.startsWith('/home')) {
-          window.location.replace('/landlord');
-          return;
-        }
-
         // Persist the resolved payload on the global scope so Flutter can read it even if it
         // attaches the `brandingReady` listener after this event is dispatched.
         window.__brandingPayload = resolvedBranding;
@@ -229,34 +231,12 @@
   </script>
 
   <script>
-    // Splash must be removed once Flutter paints the first frame.
-    // Some Flutter web boots can miss the `flutter-first-frame` event, so also remove it
-    // once Flutter attaches its root element.
-    (function () {
-      const removeSplash = () => {
-        const splash = document.getElementById('splash-screen');
-        if (splash) splash.remove();
-      };
-
-      // Prefer the first-frame signal when available...
-      window.addEventListener('flutter-first-frame', removeSplash);
-
-      // ...but also remove the splash as soon as Flutter attaches its root element.
-      const tryRemoveOnFlutterRoot = () => {
-        if (document.querySelector('flt-glass-pane')) {
-          removeSplash();
-          return true;
-        }
-        return false;
-      };
-
-      if (!tryRemoveOnFlutterRoot()) {
-        const observer = new MutationObserver(() => {
-          if (tryRemoveOnFlutterRoot()) observer.disconnect();
-        });
-        observer.observe(document.documentElement, { childList: true, subtree: true });
-      }
-    })();
+    // Remove the splash screen after Flutter paints the first frame.
+    // This is required so navigation validation can assert the app is actually visible.
+    window.addEventListener('flutter-first-frame', function () {
+      const splash = document.getElementById('splash-screen');
+      if (splash) splash.remove();
+    });
   </script>
 
   <script src="flutter_bootstrap.js" async></script>
