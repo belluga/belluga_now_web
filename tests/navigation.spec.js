@@ -18,19 +18,35 @@ test('web artifact boots and performs basic navigation', async ({ page }) => {
     'main.dart.js must not contain boilerplate.belluga.space fallback'
   ).toBeFalsy();
 
-  // The built artifact runs a pre-Flutter branding fetch against the landlord host.
-  // CI must not rely on external network and must remain deterministic.
-  await page.route('**/api/v1/environment*', async (route) => {
-    const url = route.request().url();
-    if (url.startsWith(localBase)) {
-      await route.continue();
-      return;
-    }
+  // The web bootstrap depends on `/api/v1/environment` (host/origin), and the app
+  // issues an anonymous identity during startup. In CI we serve only static files,
+  // so these endpoints must be mocked to keep navigation validation deterministic.
+  const mockEnvironmentPayload = {
+    type: 'landlord',
+    name: 'CI',
+    main_domain: localBase,
+    theme_data_settings: { primary_seed_color: '#4fa0e3' }
+  };
 
+  await page.route('**/api/v1/environment*', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ name: 'CI', theme_data_settings: { primary_seed_color: '#4fa0e3' } })
+      body: JSON.stringify(mockEnvironmentPayload)
+    });
+  });
+
+  // Matches BackendContext.fromAppData(): origin.resolve('/api') + '/v1/...'
+  await page.route('**/api/v1/anonymous/identities*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          token: 'ci-anon-token',
+          user_id: 'ci-user'
+        }
+      })
     });
   });
 
