@@ -88,12 +88,18 @@ jobs:
       - name: Resolve lane and live navigation targets
         id: nav_targets
         env:
-          DEV_NAV_LANDLORD_URL: ${{ vars.DEV_NAV_LANDLORD_URL }}
-          DEV_NAV_TENANT_URL: ${{ vars.DEV_NAV_TENANT_URL }}
-          STAGE_NAV_LANDLORD_URL: ${{ vars.STAGE_NAV_LANDLORD_URL }}
-          STAGE_NAV_TENANT_URL: ${{ vars.STAGE_NAV_TENANT_URL }}
-          MAIN_NAV_LANDLORD_URL: ${{ vars.MAIN_NAV_LANDLORD_URL }}
-          MAIN_NAV_TENANT_URL: ${{ vars.MAIN_NAV_TENANT_URL }}
+          DEV_NAV_LANDLORD_URL_VAR: ${{ vars.DEV_NAV_LANDLORD_URL }}
+          DEV_NAV_TENANT_URL_VAR: ${{ vars.DEV_NAV_TENANT_URL }}
+          STAGE_NAV_LANDLORD_URL_VAR: ${{ vars.STAGE_NAV_LANDLORD_URL }}
+          STAGE_NAV_TENANT_URL_VAR: ${{ vars.STAGE_NAV_TENANT_URL }}
+          MAIN_NAV_LANDLORD_URL_VAR: ${{ vars.MAIN_NAV_LANDLORD_URL }}
+          MAIN_NAV_TENANT_URL_VAR: ${{ vars.MAIN_NAV_TENANT_URL }}
+          DEV_NAV_LANDLORD_URL_SECRET: ${{ secrets.DEV_NAV_LANDLORD_URL }}
+          DEV_NAV_TENANT_URL_SECRET: ${{ secrets.DEV_NAV_TENANT_URL }}
+          STAGE_NAV_LANDLORD_URL_SECRET: ${{ secrets.STAGE_NAV_LANDLORD_URL }}
+          STAGE_NAV_TENANT_URL_SECRET: ${{ secrets.STAGE_NAV_TENANT_URL }}
+          MAIN_NAV_LANDLORD_URL_SECRET: ${{ secrets.MAIN_NAV_LANDLORD_URL }}
+          MAIN_NAV_TENANT_URL_SECRET: ${{ secrets.MAIN_NAV_TENANT_URL }}
         run: |
           set -euo pipefail
 
@@ -105,16 +111,16 @@ jobs:
 
           case "$lane" in
             dev)
-              landlord="${DEV_NAV_LANDLORD_URL:-}"
-              tenant="${DEV_NAV_TENANT_URL:-}"
+              landlord="${DEV_NAV_LANDLORD_URL_VAR:-${DEV_NAV_LANDLORD_URL_SECRET:-}}"
+              tenant="${DEV_NAV_TENANT_URL_VAR:-${DEV_NAV_TENANT_URL_SECRET:-}}"
               ;;
             stage)
-              landlord="${STAGE_NAV_LANDLORD_URL:-}"
-              tenant="${STAGE_NAV_TENANT_URL:-}"
+              landlord="${STAGE_NAV_LANDLORD_URL_VAR:-${STAGE_NAV_LANDLORD_URL_SECRET:-}}"
+              tenant="${STAGE_NAV_TENANT_URL_VAR:-${STAGE_NAV_TENANT_URL_SECRET:-}}"
               ;;
             main)
-              landlord="${MAIN_NAV_LANDLORD_URL:-}"
-              tenant="${MAIN_NAV_TENANT_URL:-}"
+              landlord="${MAIN_NAV_LANDLORD_URL_VAR:-${MAIN_NAV_LANDLORD_URL_SECRET:-}}"
+              tenant="${MAIN_NAV_TENANT_URL_VAR:-${MAIN_NAV_TENANT_URL_SECRET:-}}"
               ;;
             *)
               echo "ERROR: unsupported lane '$lane'. Allowed lanes: dev, stage, main." >&2
