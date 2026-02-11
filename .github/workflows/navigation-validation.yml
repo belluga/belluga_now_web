@@ -91,6 +91,27 @@ jobs:
           node-version: '20'
           cache: npm
 
+      - name: Preflight initialization status
+        env:
+          NAV_LANDLORD_URL: ${{ steps.nav_targets.outputs.landlord }}
+        run: |
+          set -euo pipefail
+
+          landlord="${NAV_LANDLORD_URL%/}"
+          initialize_url="${landlord}/api/v1/initialize"
+
+          echo "Checking initialization status at: ${initialize_url}"
+          status="$(curl -sS -m 15 -o /tmp/initialize_response.json -w '%{http_code}' "${initialize_url}")"
+
+          echo "Initialization status code: ${status}"
+          if [[ "${status}" != "200" ]]; then
+            echo "ERROR: Environment is not initialized for navigation validation (expected HTTP 200)." >&2
+            echo "Run system initialization first, then rerun the pipeline." >&2
+            echo "Response body:" >&2
+            cat /tmp/initialize_response.json >&2 || true
+            exit 1
+          fi
+
       - name: Install dependencies
         run: npm ci
 
