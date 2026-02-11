@@ -1,0 +1,111 @@
+name: Web Navigation Validation
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    branches:
+      - dev
+      - stage
+      - main
+  push:
+    branches:
+      - dev
+      - stage
+      - main
+      - cicd-implementation
+
+concurrency:
+  group: web-navigation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lane_policy:
+    name: Lane Promotion Policy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+
+      - name: Enforce branch promotion lanes
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+
+          BASE_REF="${GITHUB_BASE_REF:-}"
+          HEAD_REF="${GITHUB_HEAD_REF:-}"
+
+          if [[ -z "$BASE_REF" || -z "$HEAD_REF" ]]; then
+            echo "ERROR: missing pull request branch context (base/head)." >&2
+            exit 1
+          fi
+
+          case "$BASE_REF" in
+            stage)
+              [[ "$HEAD_REF" == "dev" || "$HEAD_REF" == ci/flutter-web-stage-* ]] || {
+                echo "ERROR: only 'dev' or 'ci/flutter-web-stage-*' may target 'stage' (received '$HEAD_REF' -> '$BASE_REF')." >&2
+                exit 1
+              }
+              ;;
+            main)
+              [[ "$HEAD_REF" == "stage" || "$HEAD_REF" == ci/flutter-web-main-* ]] || {
+                echo "ERROR: only 'stage' or 'ci/flutter-web-main-*' may target 'main' (received '$HEAD_REF' -> '$BASE_REF')." >&2
+                exit 1
+              }
+              ;;
+            dev)
+              echo "OK: '$HEAD_REF' -> '$BASE_REF' allowed for development integration."
+              ;;
+            *)
+              echo "ERROR: unsupported base branch '$BASE_REF'. Allowed bases: dev, stage, main." >&2
+              exit 1
+              ;;
+          esac
+
+          echo "OK: lane promotion policy passed for '$HEAD_REF' -> '$BASE_REF'."
+
+      - name: Skip lane policy on non-PR events
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "SKIP: lane policy is only enforced for pull_request events."
+
+  navigation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs:
+      - lane_policy
+    if: ${{ github.event_name != 'pull_request' || needs.lane_policy.result == 'success' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run navigation validation
+        run: npm run test:navigation
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-navigation-artifacts
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
