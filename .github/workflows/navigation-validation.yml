@@ -129,22 +129,38 @@ jobs:
           esac
 
           if [[ -z "$landlord" || -z "$tenant" ]]; then
+            if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+              echo "WARNING: missing live navigation targets for lane '$lane' on pull_request. Skipping real navigation validation." >&2
+              echo "Set ${lane^^}_NAV_LANDLORD_URL and ${lane^^}_NAV_TENANT_URL (vars or secrets) to enable this validation." >&2
+              echo "lane=$lane" >> "$GITHUB_OUTPUT"
+              echo "skip_navigation=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
             echo "ERROR: missing live navigation targets for lane '$lane'." >&2
-            echo "Set ${lane^^}_NAV_LANDLORD_URL and ${lane^^}_NAV_TENANT_URL repository variables." >&2
+            echo "Set ${lane^^}_NAV_LANDLORD_URL and ${lane^^}_NAV_TENANT_URL (vars or secrets)." >&2
             exit 1
           fi
 
           echo "lane=$lane" >> "$GITHUB_OUTPUT"
           echo "landlord=$landlord" >> "$GITHUB_OUTPUT"
           echo "tenant=$tenant" >> "$GITHUB_OUTPUT"
+          echo "skip_navigation=false" >> "$GITHUB_OUTPUT"
+
+      - name: Skip real navigation validation (targets missing)
+        if: steps.nav_targets.outputs.skip_navigation == 'true'
+        run: |
+          echo "SKIP: real navigation validation skipped because live target URLs are not configured for this PR lane."
 
       - name: Setup Node.js
+        if: steps.nav_targets.outputs.skip_navigation != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
 
       - name: Preflight initialization status
+        if: steps.nav_targets.outputs.skip_navigation != 'true'
         env:
           NAV_LANDLORD_URL: ${{ steps.nav_targets.outputs.landlord }}
         run: |
@@ -166,12 +182,15 @@ jobs:
           fi
 
       - name: Install dependencies
+        if: steps.nav_targets.outputs.skip_navigation != 'true'
         run: npm ci
 
       - name: Install Playwright browser
+        if: steps.nav_targets.outputs.skip_navigation != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run navigation validation
+        if: steps.nav_targets.outputs.skip_navigation != 'true'
         env:
           NAV_LANDLORD_URL: ${{ steps.nav_targets.outputs.landlord }}
           NAV_TENANT_URL: ${{ steps.nav_targets.outputs.tenant }}
