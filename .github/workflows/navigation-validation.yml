@@ -85,19 +85,115 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve lane and live navigation targets
+        id: nav_targets
+        env:
+          DEV_NAV_LANDLORD_URL_VAR: ${{ vars.DEV_NAV_LANDLORD_URL }}
+          DEV_NAV_TENANT_URL_VAR: ${{ vars.DEV_NAV_TENANT_URL }}
+          STAGE_NAV_LANDLORD_URL_VAR: ${{ vars.STAGE_NAV_LANDLORD_URL }}
+          STAGE_NAV_TENANT_URL_VAR: ${{ vars.STAGE_NAV_TENANT_URL }}
+          MAIN_NAV_LANDLORD_URL_VAR: ${{ vars.MAIN_NAV_LANDLORD_URL }}
+          MAIN_NAV_TENANT_URL_VAR: ${{ vars.MAIN_NAV_TENANT_URL }}
+          DEV_NAV_LANDLORD_URL_SECRET: ${{ secrets.DEV_NAV_LANDLORD_URL }}
+          DEV_NAV_TENANT_URL_SECRET: ${{ secrets.DEV_NAV_TENANT_URL }}
+          STAGE_NAV_LANDLORD_URL_SECRET: ${{ secrets.STAGE_NAV_LANDLORD_URL }}
+          STAGE_NAV_TENANT_URL_SECRET: ${{ secrets.STAGE_NAV_TENANT_URL }}
+          MAIN_NAV_LANDLORD_URL_SECRET: ${{ secrets.MAIN_NAV_LANDLORD_URL }}
+          MAIN_NAV_TENANT_URL_SECRET: ${{ secrets.MAIN_NAV_TENANT_URL }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            lane="${GITHUB_BASE_REF}"
+          else
+            lane="${GITHUB_REF_NAME}"
+          fi
+
+          case "$lane" in
+            dev)
+              landlord="${DEV_NAV_LANDLORD_URL_VAR:-${DEV_NAV_LANDLORD_URL_SECRET:-}}"
+              tenant="${DEV_NAV_TENANT_URL_VAR:-${DEV_NAV_TENANT_URL_SECRET:-}}"
+              ;;
+            stage)
+              landlord="${STAGE_NAV_LANDLORD_URL_VAR:-${STAGE_NAV_LANDLORD_URL_SECRET:-}}"
+              tenant="${STAGE_NAV_TENANT_URL_VAR:-${STAGE_NAV_TENANT_URL_SECRET:-}}"
+              ;;
+            main)
+              landlord="${MAIN_NAV_LANDLORD_URL_VAR:-${MAIN_NAV_LANDLORD_URL_SECRET:-}}"
+              tenant="${MAIN_NAV_TENANT_URL_VAR:-${MAIN_NAV_TENANT_URL_SECRET:-}}"
+              ;;
+            *)
+              echo "ERROR: unsupported lane '$lane'. Allowed lanes: dev, stage, main." >&2
+              exit 1
+              ;;
+          esac
+
+          if [[ -z "$landlord" || -z "$tenant" ]]; then
+            if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+              echo "WARNING: missing live navigation targets for lane '$lane' on pull_request. Skipping real navigation validation." >&2
+              echo "Set ${lane^^}_NAV_LANDLORD_URL and ${lane^^}_NAV_TENANT_URL (vars or secrets) to enable this validation." >&2
+              echo "lane=$lane" >> "$GITHUB_OUTPUT"
+              echo "skip_navigation=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "ERROR: missing live navigation targets for lane '$lane'." >&2
+            echo "Set ${lane^^}_NAV_LANDLORD_URL and ${lane^^}_NAV_TENANT_URL (vars or secrets)." >&2
+            exit 1
+          fi
+
+          echo "lane=$lane" >> "$GITHUB_OUTPUT"
+          echo "landlord=$landlord" >> "$GITHUB_OUTPUT"
+          echo "tenant=$tenant" >> "$GITHUB_OUTPUT"
+          echo "skip_navigation=false" >> "$GITHUB_OUTPUT"
+
+      - name: Skip real navigation validation (targets missing)
+        if: steps.nav_targets.outputs.skip_navigation == 'true'
+        run: |
+          echo "SKIP: real navigation validation skipped because live target URLs are not configured for this PR lane."
+
       - name: Setup Node.js
+        if: steps.nav_targets.outputs.skip_navigation != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
 
+      - name: Preflight initialization status
+        if: steps.nav_targets.outputs.skip_navigation != 'true'
+        env:
+          NAV_LANDLORD_URL: ${{ steps.nav_targets.outputs.landlord }}
+        run: |
+          set -euo pipefail
+
+          landlord="${NAV_LANDLORD_URL%/}"
+          initialize_url="${landlord}/api/v1/initialize"
+
+          echo "Checking initialization status at: ${initialize_url}"
+          status="$(curl -sS -m 15 -o /tmp/initialize_response.json -w '%{http_code}' "${initialize_url}")"
+
+          echo "Initialization status code: ${status}"
+          if [[ "${status}" != "200" ]]; then
+            echo "ERROR: Environment is not initialized for navigation validation (expected HTTP 200)." >&2
+            echo "Run system initialization first, then rerun the pipeline." >&2
+            echo "Response body:" >&2
+            cat /tmp/initialize_response.json >&2 || true
+            exit 1
+          fi
+
       - name: Install dependencies
+        if: steps.nav_targets.outputs.skip_navigation != 'true'
         run: npm ci
 
       - name: Install Playwright browser
+        if: steps.nav_targets.outputs.skip_navigation != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run navigation validation
+        if: steps.nav_targets.outputs.skip_navigation != 'true'
+        env:
+          NAV_LANDLORD_URL: ${{ steps.nav_targets.outputs.landlord }}
+          NAV_TENANT_URL: ${{ steps.nav_targets.outputs.tenant }}
         run: npm run test:navigation
 
       - name: Upload Playwright artifacts on failure
