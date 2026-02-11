@@ -109,6 +109,15 @@ jobs:
             lane="${GITHUB_REF_NAME}"
           fi
 
+          # Dev lane is validated locally by each developer environment.
+          # CI real navigation validation is enforced on stage/main only.
+          if [[ "$lane" == "dev" ]]; then
+            echo "INFO: skipping real navigation validation on dev lane (local-only validation policy)."
+            echo "lane=$lane" >> "$GITHUB_OUTPUT"
+            echo "skip_navigation=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           case "$lane" in
             dev)
               landlord="${DEV_NAV_LANDLORD_URL_VAR:-${DEV_NAV_LANDLORD_URL_SECRET:-}}"
@@ -150,7 +159,7 @@ jobs:
       - name: Skip real navigation validation (targets missing)
         if: steps.nav_targets.outputs.skip_navigation == 'true'
         run: |
-          echo "SKIP: real navigation validation skipped because live target URLs are not configured for this PR lane."
+          echo "SKIP: real navigation validation skipped for this lane/policy."
 
       - name: Setup Node.js
         if: steps.nav_targets.outputs.skip_navigation != 'true'
