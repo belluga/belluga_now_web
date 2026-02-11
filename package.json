@@ -6,7 +6,6 @@
     "test:navigation": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.52.0",
-    "serve": "^14.2.4"
+    "@playwright/test": "^1.52.0"
   }
 }

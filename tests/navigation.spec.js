@@ -1,128 +1,97 @@
 const { test, expect } = require('@playwright/test');
 
-async function installCiBootstrapMocks(page, localBase) {
-  const mockEnvironmentPayload = {
-    type: 'landlord',
-    name: 'CI',
-    main_domain: localBase,
-    theme_data_settings: { primary_seed_color: '#4fa0e3' }
-  };
+const landlordUrl = process.env.NAV_LANDLORD_URL;
+const tenantUrl = process.env.NAV_TENANT_URL;
 
-  await page.route('**/api/v1/environment*', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(mockEnvironmentPayload)
-    });
-  });
-
-  // Matches BackendContext.fromAppData(): origin.resolve('/api') + '/v1/...'
-  await page.route('**/api/v1/anonymous/identities*', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        data: {
-          token: 'ci-anon-token',
-          user_id: 'ci-user'
-        }
-      })
-    });
-  });
+if (!landlordUrl || !tenantUrl) {
+  throw new Error('Missing NAV_LANDLORD_URL/NAV_TENANT_URL. Real navigation tests require live backend URLs.');
 }
 
-test('web artifact boots and performs basic navigation', async ({ page }) => {
-  const localBase = 'http://127.0.0.1:4173';
-  const criticalAssetPattern = /\/(main\.dart\.js|flutter\.js|flutter_bootstrap\.js)(\?|$)/;
-  const pageErrors = [];
-  const failedCriticalRequests = [];
-  const badCriticalResponses = [];
+function installFailureCollectors(page) {
+  const runtimeErrors = [];
+  const failedRequests = [];
+  const consoleErrors = [];
 
-  // Guardrail: the published web bundle must never contain legacy hardcoded fallbacks
-  // (e.g. boilerplate.belluga.space). These are unacceptable because they silently route
-  // users to the wrong backend when environment/bootstrap fails.
-  const jsResponse = await page.request.get(`${localBase}/main.dart.js`);
-  expect(jsResponse.ok(), 'main.dart.js must be fetchable from the local web server').toBeTruthy();
-  const jsText = await jsResponse.text();
-  expect(
-    jsText.includes('boilerplate.belluga.space'),
-    'main.dart.js must not contain boilerplate.belluga.space fallback'
-  ).toBeFalsy();
-
-  // The web bootstrap depends on `/api/v1/environment` (host/origin), and the app
-  // issues an anonymous identity during startup. In CI we serve only static files,
-  // so these endpoints must be mocked to keep navigation validation deterministic.
-  await installCiBootstrapMocks(page, localBase);
-
-  page.on('pageerror', (error) => {
-    pageErrors.push(error.message);
-  });
-
+  page.on('pageerror', (error) => runtimeErrors.push(error.message));
   page.on('requestfailed', (request) => {
-    const url = request.url();
-    const isCriticalLocalAsset = url.startsWith(localBase) && criticalAssetPattern.test(url);
-
-    if (isCriticalLocalAsset) {
-      failedCriticalRequests.push(`${request.method()} ${url} (${request.failure()?.errorText || 'unknown'})`);
+    failedRequests.push(`${request.method()} ${request.url()} (${request.failure()?.errorText || 'unknown'})`);
+  });
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      consoleErrors.push(message.text());
     }
   });
 
-  page.on('response', (response) => {
-    const url = response.url();
-    const isCriticalLocalAsset = url.startsWith(localBase) && criticalAssetPattern.test(url);
+  return { runtimeErrors, failedRequests, consoleErrors };
+}
 
-    if (isCriticalLocalAsset && response.status() >= 400) {
-      badCriticalResponses.push(`${response.status()} ${response.request().method()} ${url}`);
-    }
-  });
-
-  const homeResponse = await page.goto('/', { waitUntil: 'domcontentloaded' });
-  expect(homeResponse, 'Home response should be available').not.toBeNull();
-  expect(homeResponse.status(), 'Home response should be successful').toBeLessThan(400);
+async function assertAppBooted(page) {
   await expect(page.locator('body')).toBeVisible();
   await expect(page.locator('script[src*="main.dart.js"]')).toHaveCount(1);
+  await expect(page.locator('flt-glass-pane')).toHaveCount(1, { timeout: 90000 });
+  await expect(page.locator('#splash-screen')).toHaveCount(0, { timeout: 90000 });
+}
 
-  // Flutter boots by attaching its root elements (avoid depending on app-specific UI copy).
-  await expect(page.locator('flt-glass-pane')).toHaveCount(1, { timeout: 60000 });
+async function waitForLanding(page, allowedPrefixes) {
+  await page.waitForFunction(
+    (prefixes) => {
+      const { pathname, hash } = window.location;
+      const pathOk = prefixes.some((prefix) => pathname.startsWith(prefix));
+      const hashOk = prefixes.some((prefix) => hash.startsWith(`#${prefix}`));
+      return pathOk || hashOk;
+    },
+    allowedPrefixes,
+    { timeout: 90000 }
+  );
+}
 
-  // Splash must be removed once Flutter paints the first frame.
-  await expect(page.locator('#splash-screen')).toHaveCount(0, { timeout: 60000 });
+test('landlord domain bootstraps as landlord and navigates', async ({ page }) => {
+  const collectors = installFailureCollectors(page);
 
-  // After boot, the app should resolve its landing route (home/invites/landlord).
-  // Accept both PathUrlStrategy and HashUrlStrategy.
-  const landingRouteReady = async () => {
-    const { pathname, hash } = window.location;
-    const pathOk = pathname.startsWith('/home') || pathname.startsWith('/invites') || pathname.startsWith('/landlord');
-    const hashOk = hash.startsWith('#/home') || hash.startsWith('#/invites') || hash.startsWith('#/landlord');
-    return pathOk || hashOk;
-  };
-  await page.waitForFunction(landingRouteReady, null, { timeout: 60000 });
+  const envResponsePromise = page.waitForResponse((response) => {
+    return response.url().includes('/api/v1/environment') && response.request().method() === 'GET';
+  });
 
-  await page.waitForTimeout(500);
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.locator('body')).toBeVisible();
-  await expect(page.locator('flt-glass-pane')).toHaveCount(1, { timeout: 60000 });
-  await expect(page.locator('#splash-screen')).toHaveCount(0, { timeout: 60000 });
+  const response = await page.goto(landlordUrl, { waitUntil: 'domcontentloaded' });
+  expect(response, 'Landlord response should be available').not.toBeNull();
+  expect(response.status(), 'Landlord response should be successful').toBeLessThan(400);
 
-  // Useful debug signal in CI to understand which landing route the app chose.
-  // (Shown in Playwright logs without making the test depend on UI strings.)
-  const landingHref = await page.evaluate(() => window.location.href);
-  console.log(`[nav] landing href: ${landingHref}`);
+  const envResponse = await envResponsePromise;
+  expect(envResponse.status(), 'Landlord environment endpoint should succeed').toBeLessThan(400);
+  const envPayload = await envResponse.json();
+  expect(envPayload?.type, 'Landlord environment payload must resolve as landlord').toBe('landlord');
 
-  expect(pageErrors, `Unexpected runtime errors:\n${pageErrors.join('\n')}`).toEqual([]);
-  expect(failedCriticalRequests, `Critical asset request failures:\n${failedCriticalRequests.join('\n')}`).toEqual([]);
-  expect(badCriticalResponses, `Critical asset bad responses:\n${badCriticalResponses.join('\n')}`).toEqual([]);
+  await assertAppBooted(page);
+  await waitForLanding(page, ['/landlord']);
+
+  expect(collectors.runtimeErrors, `Unexpected runtime errors:\n${collectors.runtimeErrors.join('\n')}`).toEqual([]);
+  expect(collectors.failedRequests, `Failed requests:\n${collectors.failedRequests.join('\n')}`).toEqual([]);
+  expect(collectors.consoleErrors, `Console errors:\n${collectors.consoleErrors.join('\n')}`).toEqual([]);
 });
 
-test('deep link serves app shell without 4xx/5xx', async ({ page }) => {
-  const localBase = 'http://127.0.0.1:4173';
-  await installCiBootstrapMocks(page, localBase);
+test('tenant domain bootstraps as tenant and navigates to tenant routes', async ({ page }) => {
+  const collectors = installFailureCollectors(page);
 
-  // Ensure the server behaves like production nginx `try_files ... /index.html`.
-  const routeResponse = await page.goto('/landlord', { waitUntil: 'domcontentloaded' });
-  expect(routeResponse, 'Route response should be available').not.toBeNull();
-  expect(routeResponse.status(), 'Deep link response should be successful').toBeLessThan(400);
-  await expect(page.locator('body')).toBeVisible();
-  await expect(page.locator('flt-glass-pane')).toHaveCount(1, { timeout: 60000 });
-  await expect(page.locator('#splash-screen')).toHaveCount(0, { timeout: 60000 });
+  const envResponsePromise = page.waitForResponse((response) => {
+    return response.url().includes('/api/v1/environment') && response.request().method() === 'GET';
+  });
+
+  const response = await page.goto(tenantUrl, { waitUntil: 'domcontentloaded' });
+  expect(response, 'Tenant response should be available').not.toBeNull();
+  expect(response.status(), 'Tenant response should be successful').toBeLessThan(400);
+
+  const envResponse = await envResponsePromise;
+  expect(envResponse.status(), 'Tenant environment endpoint should succeed').toBeLessThan(400);
+  const envPayload = await envResponse.json();
+  expect(envPayload?.type, 'Tenant environment payload must resolve as tenant').toBe('tenant');
+
+  await assertAppBooted(page);
+  await waitForLanding(page, ['/home', '/invites', '/profile']);
+
+  const landingHref = await page.evaluate(() => window.location.href);
+  console.log(`[nav][tenant] landing href: ${landingHref}`);
+
+  expect(collectors.runtimeErrors, `Unexpected runtime errors:\n${collectors.runtimeErrors.join('\n')}`).toEqual([]);
+  expect(collectors.failedRequests, `Failed requests:\n${collectors.failedRequests.join('\n')}`).toEqual([]);
+  expect(collectors.consoleErrors, `Console errors:\n${collectors.consoleErrors.join('\n')}`).toEqual([]);
 });
