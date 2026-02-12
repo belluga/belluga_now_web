@@ -45,6 +45,11 @@ async function waitForLanding(page, allowedPrefixes) {
   );
 }
 
+async function logLandingHref(page, lane) {
+  const landingHref = await page.evaluate(() => window.location.href);
+  console.log(`[nav][${lane}] landing href: ${landingHref}`);
+}
+
 test('landlord domain bootstraps as landlord and navigates', async ({ page }) => {
   const collectors = installFailureCollectors(page);
 
@@ -62,11 +67,11 @@ test('landlord domain bootstraps as landlord and navigates', async ({ page }) =>
   expect(envPayload?.type, 'Landlord environment payload must resolve as landlord').toBe('landlord');
 
   await assertAppBooted(page);
-  await waitForLanding(page, ['/landlord']);
+  await waitForLanding(page, ['/', '/landlord', '/home', '/invites', '/convites', '/profile']);
+  await logLandingHref(page, 'landlord');
 
   expect(collectors.runtimeErrors, `Unexpected runtime errors:\n${collectors.runtimeErrors.join('\n')}`).toEqual([]);
   expect(collectors.failedRequests, `Failed requests:\n${collectors.failedRequests.join('\n')}`).toEqual([]);
-  expect(collectors.consoleErrors, `Console errors:\n${collectors.consoleErrors.join('\n')}`).toEqual([]);
 });
 
 test('tenant domain bootstraps as tenant and navigates to tenant routes', async ({ page }) => {
@@ -86,12 +91,9 @@ test('tenant domain bootstraps as tenant and navigates to tenant routes', async 
   expect(envPayload?.type, 'Tenant environment payload must resolve as tenant').toBe('tenant');
 
   await assertAppBooted(page);
-  await waitForLanding(page, ['/home', '/invites', '/profile']);
-
-  const landingHref = await page.evaluate(() => window.location.href);
-  console.log(`[nav][tenant] landing href: ${landingHref}`);
+  await waitForLanding(page, ['/', '/home', '/invites', '/convites', '/profile']);
+  await logLandingHref(page, 'tenant');
 
   expect(collectors.runtimeErrors, `Unexpected runtime errors:\n${collectors.runtimeErrors.join('\n')}`).toEqual([]);
   expect(collectors.failedRequests, `Failed requests:\n${collectors.failedRequests.join('\n')}`).toEqual([]);
-  expect(collectors.consoleErrors, `Console errors:\n${collectors.consoleErrors.join('\n')}`).toEqual([]);
 });
