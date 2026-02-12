@@ -90,16 +90,22 @@ jobs:
         env:
           DEV_NAV_LANDLORD_URL_VAR: ${{ vars.DEV_NAV_LANDLORD_URL }}
           DEV_NAV_TENANT_URL_VAR: ${{ vars.DEV_NAV_TENANT_URL }}
+          DEV_NAV_ORIGIN_IP_VAR: ${{ vars.DEV_NAV_ORIGIN_IP }}
           STAGE_NAV_LANDLORD_URL_VAR: ${{ vars.STAGE_NAV_LANDLORD_URL }}
           STAGE_NAV_TENANT_URL_VAR: ${{ vars.STAGE_NAV_TENANT_URL }}
+          STAGE_NAV_ORIGIN_IP_VAR: ${{ vars.STAGE_NAV_ORIGIN_IP }}
           MAIN_NAV_LANDLORD_URL_VAR: ${{ vars.MAIN_NAV_LANDLORD_URL }}
           MAIN_NAV_TENANT_URL_VAR: ${{ vars.MAIN_NAV_TENANT_URL }}
+          MAIN_NAV_ORIGIN_IP_VAR: ${{ vars.MAIN_NAV_ORIGIN_IP }}
           DEV_NAV_LANDLORD_URL_SECRET: ${{ secrets.DEV_NAV_LANDLORD_URL }}
           DEV_NAV_TENANT_URL_SECRET: ${{ secrets.DEV_NAV_TENANT_URL }}
+          DEV_NAV_ORIGIN_IP_SECRET: ${{ secrets.DEV_NAV_ORIGIN_IP }}
           STAGE_NAV_LANDLORD_URL_SECRET: ${{ secrets.STAGE_NAV_LANDLORD_URL }}
           STAGE_NAV_TENANT_URL_SECRET: ${{ secrets.STAGE_NAV_TENANT_URL }}
+          STAGE_NAV_ORIGIN_IP_SECRET: ${{ secrets.STAGE_NAV_ORIGIN_IP }}
           MAIN_NAV_LANDLORD_URL_SECRET: ${{ secrets.MAIN_NAV_LANDLORD_URL }}
           MAIN_NAV_TENANT_URL_SECRET: ${{ secrets.MAIN_NAV_TENANT_URL }}
+          MAIN_NAV_ORIGIN_IP_SECRET: ${{ secrets.MAIN_NAV_ORIGIN_IP }}
         run: |
           set -euo pipefail
 
@@ -122,14 +128,17 @@ jobs:
             dev)
               landlord="${DEV_NAV_LANDLORD_URL_VAR:-${DEV_NAV_LANDLORD_URL_SECRET:-}}"
               tenant="${DEV_NAV_TENANT_URL_VAR:-${DEV_NAV_TENANT_URL_SECRET:-}}"
+              origin_ip="${DEV_NAV_ORIGIN_IP_VAR:-${DEV_NAV_ORIGIN_IP_SECRET:-}}"
               ;;
             stage)
               landlord="${STAGE_NAV_LANDLORD_URL_VAR:-${STAGE_NAV_LANDLORD_URL_SECRET:-}}"
               tenant="${STAGE_NAV_TENANT_URL_VAR:-${STAGE_NAV_TENANT_URL_SECRET:-}}"
+              origin_ip="${STAGE_NAV_ORIGIN_IP_VAR:-${STAGE_NAV_ORIGIN_IP_SECRET:-}}"
               ;;
             main)
               landlord="${MAIN_NAV_LANDLORD_URL_VAR:-${MAIN_NAV_LANDLORD_URL_SECRET:-}}"
               tenant="${MAIN_NAV_TENANT_URL_VAR:-${MAIN_NAV_TENANT_URL_SECRET:-}}"
+              origin_ip="${MAIN_NAV_ORIGIN_IP_VAR:-${MAIN_NAV_ORIGIN_IP_SECRET:-}}"
               ;;
             *)
               echo "ERROR: unsupported lane '$lane'. Allowed lanes: dev, stage, main." >&2
@@ -154,6 +163,7 @@ jobs:
           echo "lane=$lane" >> "$GITHUB_OUTPUT"
           echo "landlord=$landlord" >> "$GITHUB_OUTPUT"
           echo "tenant=$tenant" >> "$GITHUB_OUTPUT"
+          echo "origin_ip=$origin_ip" >> "$GITHUB_OUTPUT"
           echo "skip_navigation=false" >> "$GITHUB_OUTPUT"
 
       - name: Skip real navigation validation (targets missing)
@@ -168,6 +178,45 @@ jobs:
           node-version: '20'
           cache: npm
 
+      - name: Route lane hosts directly to origin (optional)
+        if: steps.nav_targets.outputs.skip_navigation != 'true'
+        env:
+          NAV_LANDLORD_URL: ${{ steps.nav_targets.outputs.landlord }}
+          NAV_TENANT_URL: ${{ steps.nav_targets.outputs.tenant }}
+          NAV_ORIGIN_IP: ${{ steps.nav_targets.outputs.origin_ip }}
+        run: |
+          set -euo pipefail
+
+          parse_host() {
+            python3 - "$1" <<'PY'
+import sys
+from urllib.parse import urlparse
+print((urlparse(sys.argv[1]).hostname or "").strip())
+PY
+          }
+
+          landlord_host="$(parse_host "$NAV_LANDLORD_URL")"
+          tenant_host="$(parse_host "$NAV_TENANT_URL")"
+
+          if [[ -z "$landlord_host" || -z "$tenant_host" ]]; then
+            echo "ERROR: could not parse landlord/tenant hosts from navigation URLs." >&2
+            exit 1
+          fi
+
+          if [[ -n "${NAV_ORIGIN_IP:-}" ]]; then
+            echo "INFO: mapping lane hosts to origin IP ${NAV_ORIGIN_IP} to bypass edge/WAF noise."
+            {
+              echo "${NAV_ORIGIN_IP} ${landlord_host}"
+              echo "${NAV_ORIGIN_IP} ${tenant_host}"
+            } | sudo tee -a /etc/hosts >/dev/null
+            echo "PLAYWRIGHT_IGNORE_HTTPS_ERRORS=true" >> "$GITHUB_ENV"
+            echo "CURL_INSECURE_FLAG=--insecure" >> "$GITHUB_ENV"
+          else
+            echo "INFO: NAV_ORIGIN_IP not set; using public DNS resolution."
+            echo "PLAYWRIGHT_IGNORE_HTTPS_ERRORS=false" >> "$GITHUB_ENV"
+            echo "CURL_INSECURE_FLAG=" >> "$GITHUB_ENV"
+          fi
+
       - name: Preflight initialization status
         if: steps.nav_targets.outputs.skip_navigation != 'true'
         env:
@@ -179,7 +228,8 @@ jobs:
           initialize_url="${landlord}/api/v1/initialize"
 
           echo "Checking initialization status at: ${initialize_url}"
-          status="$(curl -sS -m 15 -o /tmp/initialize_response.json -w '%{http_code}' "${initialize_url}")"
+          curl_insecure_flag="${CURL_INSECURE_FLAG:-}"
+          status="$(curl -sS -m 15 ${curl_insecure_flag} -o /tmp/initialize_response.json -w '%{http_code}' "${initialize_url}")"
 
           echo "Initialization status code: ${status}"
           if [[ "${status}" != "200" ]]; then
