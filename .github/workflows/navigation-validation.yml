@@ -188,11 +188,8 @@ jobs:
           set -euo pipefail
 
           parse_host() {
-            python3 - "$1" <<'PY'
-import sys
-from urllib.parse import urlparse
-print((urlparse(sys.argv[1]).hostname or "").strip())
-PY
+            local input_url="$1"
+            python3 -c 'import sys, urllib.parse; print((urllib.parse.urlparse(sys.argv[1]).hostname or "").strip())' "$input_url"
           }
 
           landlord_host="$(parse_host "$NAV_LANDLORD_URL")"
