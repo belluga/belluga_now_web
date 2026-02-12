@@ -1,5 +1,7 @@
 const { defineConfig } = require('@playwright/test');
 
+const ignoreHttpsErrors = process.env.PLAYWRIGHT_IGNORE_HTTPS_ERRORS === 'true';
+
 module.exports = defineConfig({
   testDir: './tests',
   timeout: 120000,
@@ -7,16 +9,9 @@ module.exports = defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    ignoreHTTPSErrors: ignoreHttpsErrors,
     headless: true,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure'
-  },
-  webServer: {
-    // Flutter web uses PathUrlStrategy; CI needs an SPA-capable static server (history fallback).
-    command: 'npx serve -s . -l 4173',
-    url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000
   }
 });
