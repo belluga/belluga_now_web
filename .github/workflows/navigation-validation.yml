@@ -56,6 +56,10 @@ jobs:
                 exit 1
               }
               if [[ -z "${EXPECTED_SHA}" ]]; then
+                if [[ "$HEAD_REF" == "ci/flutter-web-stage" || "$HEAD_REF" == ci/flutter-web-stage-* ]]; then
+                  echo "ERROR: automated web publish PR is missing '- Expected SHA: <40-char-sha>' in body. The publish workflow must set this lock when opening/updating the PR." >&2
+                  exit 1
+                fi
                 echo "ERROR: promotion PR must declare '- Expected SHA: <40-char-sha>' in body." >&2
                 exit 1
               fi
@@ -84,6 +88,10 @@ jobs:
                 exit 1
               }
               if [[ -z "${EXPECTED_SHA}" ]]; then
+                if [[ "$HEAD_REF" == "ci/flutter-web-main" || "$HEAD_REF" == ci/flutter-web-main-* ]]; then
+                  echo "ERROR: automated web publish PR is missing '- Expected SHA: <40-char-sha>' in body. The publish workflow must set this lock when opening/updating the PR." >&2
+                  exit 1
+                fi
                 echo "ERROR: promotion PR must declare '- Expected SHA: <40-char-sha>' in body." >&2
                 exit 1
               fi
