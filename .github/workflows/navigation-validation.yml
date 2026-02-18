@@ -51,8 +51,8 @@ jobs:
 
           case "$BASE_REF" in
             stage)
-              [[ "$HEAD_REF" == "dev" || "$HEAD_REF" == ci/flutter-web-stage-* ]] || {
-                echo "ERROR: only 'dev' or 'ci/flutter-web-stage-*' may target 'stage' (received '$HEAD_REF' -> '$BASE_REF')." >&2
+              [[ "$HEAD_REF" == "dev" || "$HEAD_REF" == "ci/flutter-web-stage" || "$HEAD_REF" == ci/flutter-web-stage-* ]] || {
+                echo "ERROR: only 'dev', 'ci/flutter-web-stage', or 'ci/flutter-web-stage-*' may target 'stage' (received '$HEAD_REF' -> '$BASE_REF')." >&2
                 exit 1
               }
               if [[ -z "${EXPECTED_SHA}" ]]; then
@@ -79,8 +79,8 @@ jobs:
               fi
               ;;
             main)
-              [[ "$HEAD_REF" == "stage" || "$HEAD_REF" == ci/flutter-web-main-* ]] || {
-                echo "ERROR: only 'stage' or 'ci/flutter-web-main-*' may target 'main' (received '$HEAD_REF' -> '$BASE_REF')." >&2
+              [[ "$HEAD_REF" == "stage" || "$HEAD_REF" == "ci/flutter-web-main" || "$HEAD_REF" == ci/flutter-web-main-* ]] || {
+                echo "ERROR: only 'stage', 'ci/flutter-web-main', or 'ci/flutter-web-main-*' may target 'main' (received '$HEAD_REF' -> '$BASE_REF')." >&2
                 exit 1
               }
               if [[ -z "${EXPECTED_SHA}" ]]; then
