@@ -55,6 +55,10 @@ jobs:
                 echo "ERROR: only 'dev', 'ci/flutter-web-stage', or 'ci/flutter-web-stage-*' may target 'stage' (received '$HEAD_REF' -> '$BASE_REF')." >&2
                 exit 1
               }
+              if [[ -z "${EXPECTED_SHA}" && ( "$HEAD_REF" == "ci/flutter-web-stage" || "$HEAD_REF" == ci/flutter-web-stage-* ) ]]; then
+                EXPECTED_SHA="${PR_HEAD_SHA}"
+                echo "INFO: no Expected SHA declared for automated web publish branch; using PR head SHA lock (${EXPECTED_SHA})."
+              fi
               if [[ -z "${EXPECTED_SHA}" ]]; then
                 echo "ERROR: promotion PR must declare '- Expected SHA: <40-char-sha>' in body." >&2
                 exit 1
@@ -83,6 +87,10 @@ jobs:
                 echo "ERROR: only 'stage', 'ci/flutter-web-main', or 'ci/flutter-web-main-*' may target 'main' (received '$HEAD_REF' -> '$BASE_REF')." >&2
                 exit 1
               }
+              if [[ -z "${EXPECTED_SHA}" && ( "$HEAD_REF" == "ci/flutter-web-main" || "$HEAD_REF" == ci/flutter-web-main-* ) ]]; then
+                EXPECTED_SHA="${PR_HEAD_SHA}"
+                echo "INFO: no Expected SHA declared for automated web publish branch; using PR head SHA lock (${EXPECTED_SHA})."
+              fi
               if [[ -z "${EXPECTED_SHA}" ]]; then
                 echo "ERROR: promotion PR must declare '- Expected SHA: <40-char-sha>' in body." >&2
                 exit 1
