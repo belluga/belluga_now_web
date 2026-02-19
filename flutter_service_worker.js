@@ -32,7 +32,7 @@ const RESOURCES = {"flutter.js": "24bc71911b75b5f8135c949e27a2984e",
 "assets/assets/mock/myCourses.json": "e419359c61311a78cc091d18f331f04d",
 "assets/assets/mock/fastTrack.json": "156871cace6c71724ba169d3f6eb567d",
 "assets/fonts/MaterialIcons-Regular.otf": "e7069dfd19b331be16bed984668fe080",
-"assets/NOTICES": "56209370bfec66dd8b24aafe22de2a2f",
+"assets/NOTICES": "895b251291cf41ce66471497a719bd21",
 "assets/packages/map_launcher/assets/icons/kakao.svg": "1c7c75914d64033825ffc0ff2bdbbb58",
 "assets/packages/map_launcher/assets/icons/copilot.svg": "b412a5f02e8cef01cdb684b03834cc03",
 "assets/packages/map_launcher/assets/icons/osmandplus.svg": "31c36b1f20dc45a88c283e928583736f",
@@ -83,7 +83,7 @@ const RESOURCES = {"flutter.js": "24bc71911b75b5f8135c949e27a2984e",
 "favicon.ico": "5dcef449791fa27946b3d35ad8803796",
 "flutter_bootstrap.js": "e17ab3f8acc53f385c6c54ffa74c03a8",
 "version.json": "16f53183f8155d58336d8547ab4735c3",
-"main.dart.js": "9f45ee9354530b3e72bafe354ef94066"};
+"main.dart.js": "dd0fe8ef9185f7e70817e579999cdd0c"};
 // The application shell files that are downloaded before a service worker can
 // start.
 const CORE = ["main.dart.js",
