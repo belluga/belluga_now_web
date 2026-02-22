@@ -171,6 +171,14 @@ jobs:
             lane="${GITHUB_REF_NAME}"
           fi
 
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" && "$lane" == "stage" ]]; then
+            echo "INFO: skipping real navigation validation on stage pull_request lane."
+            echo "INFO: dev->stage promotion validates source checks + docker stage deploy smoke."
+            echo "lane=$lane" >> "$GITHUB_OUTPUT"
+            echo "skip_navigation=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           # Dev lane is validated locally by each developer environment.
           # CI real navigation validation is enforced on stage/main only.
           if [[ "$lane" == "dev" ]]; then
