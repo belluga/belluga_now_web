@@ -17,7 +17,7 @@
   <link rel="manifest" href="manifest.json">
   <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
 
-  <script>window.__LANDLORD_HOST__ = "booraagora.com.br"; window.__WEB_BUILD_SHA__ = "5f16318";</script>
+  <script>window.__LANDLORD_HOST__ = "booraagora.com.br"; window.__WEB_BUILD_SHA__ = "df52c64";</script>
 
   <style>
     #splash-screen {
@@ -163,8 +163,18 @@
       return;
     }
 
+    if (isTenantHost && pathname.startsWith('/home')) {
+      window.location.replace('/');
+      return;
+    }
+
     if (isLandlordHost && pathname.startsWith('/home')) {
-      window.location.replace('/landlord');
+      window.location.replace('/admin');
+      return;
+    }
+
+    if (isLandlordHost && pathname.startsWith('/landlord')) {
+      window.location.replace('/admin');
       return;
     }
 
