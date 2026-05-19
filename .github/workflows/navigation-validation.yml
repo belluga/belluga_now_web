@@ -23,6 +23,9 @@ concurrency:
   group: web-navigation-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   lane_policy:
     name: Lane Promotion Policy
@@ -31,7 +34,7 @@ jobs:
     steps:
       - name: Checkout
         if: github.event_name == 'pull_request'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Enforce branch promotion lanes
         if: github.event_name == 'pull_request'
@@ -85,7 +88,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Resolve lane and live navigation targets
         id: nav_targets
@@ -175,9 +178,9 @@ jobs:
 
       - name: Setup Node.js
         if: steps.nav_targets.outputs.skip_navigation != 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
 
       - name: Route lane hosts directly to origin (optional)
@@ -273,7 +276,7 @@ jobs:
 
       - name: Upload Playwright artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-navigation-artifacts
           path: |
@@ -389,7 +392,7 @@ jobs:
           echo "pr_url=${pr_url}" >> "$GITHUB_OUTPUT"
 
       - name: Dispatch source promotion status
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ env.DOCKER_REPO_DISPATCH_TOKEN }}
           repository: ${{ env.DOCKER_SYNC_TARGET_REPO }}
