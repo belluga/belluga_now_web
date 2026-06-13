@@ -263,15 +263,19 @@ jobs:
         if: steps.nav_targets.outputs.skip_navigation != 'true' && steps.init_preflight.outputs.initialized == 'true'
         run: npm ci
 
-      - name: Install Playwright browser
+      - name: Verify system Chrome availability
         if: steps.nav_targets.outputs.skip_navigation != 'true' && steps.init_preflight.outputs.initialized == 'true'
-        run: npx playwright install --with-deps chromium
+        run: |
+          # GitHub-hosted ubuntu runners already ship Google Chrome.
+          # Use that stable browser in CI instead of downloading Playwright-managed archives at runtime.
+          google-chrome --version
 
       - name: Run navigation validation
         if: steps.nav_targets.outputs.skip_navigation != 'true' && steps.init_preflight.outputs.initialized == 'true'
         env:
           NAV_LANDLORD_URL: ${{ steps.nav_targets.outputs.landlord }}
           NAV_TENANT_URL: ${{ steps.nav_targets.outputs.tenant }}
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:navigation
 
       - name: Upload Playwright artifacts on failure
