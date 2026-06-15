@@ -22952,8 +22952,10 @@ _.w=h},
 c3M(a){var s=a.length,r=A.x(a,t.Iq)
 r.push(A.c3L(null,A.DN("grupo-"+1000*Date.now()),A.DN("Novo grupo"),A.d14(s)))
 return A.d13(r)},
-c3S(a,b,c){var s=A.G(a).j("r<1,jH>")
-s=A.x(new A.r(a,new A.c3T(b,c),s),s.j("Y.E"))
+c3S(a,b,c){var s,r=B.b.k(c)
+if(r.length===0)return a
+s=A.G(a).j("r<1,jH>")
+s=A.x(new A.r(a,new A.c3T(b,r),s),s.j("Y.E"))
 s.$flags=1
 return s},
 c3Q(a,b){var s=A.G(a).j("aB<1>")
