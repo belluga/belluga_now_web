@@ -77162,7 +77162,7 @@ r=A.d2(s?j:"https://"+j)
 if(r==null||B.b.k(r.gbK(r)).length===0)throw A.n(A.ac(u.bF))
 q=s?k:A.el6(k)
 p=k
-if(!s)if(q==null){o=B.b.k("https://belluga.app")
+if(!s)if(q==null){o=B.b.k("https://bellugademo.site")
 if(o.length===0)A.a3(A.ac("LANDLORD_DOMAIN is required to resolve tenant admin base URL when tenant domain has no scheme."))
 n=A.dMl(o,"LANDLORD_DOMAIN")
 p=n}if(s)m=A.em8(r.gc2())
@@ -107249,7 +107249,7 @@ else{s=p.a.a.gh(0)
 s=(s==null?"":s).length!==0}if(s===!0)a.o1(!0)
 else{a.o1(!1)
 b.vl(0,A.a([B.DL],t.fa))}return}o=k.c.gh(0)
-n=this.c8S("https://belluga.app")
+n=this.c8S("https://bellugademo.site")
 m=n!=null&&o===n
 l=j===B.il
 if(m||l){a.o1(!0)
@@ -111795,7 +111795,7 @@ s.gdn().w.p(A.ia(!0,!0))
 s.gdn().x.p(A.ia(!1,!1))}}
 A.avx.prototype={}
 A.a2T.prototype={
-gcAF(){var s,r=B.b.k("https://belluga.app")
+gcAF(){var s,r=B.b.k("https://bellugademo.site")
 if(r.length===0)return""
 s=A.d2(r)
 if(s!=null&&B.b.k(s.gbK(s)).length!==0)return B.b.k(s.gbK(s))
@@ -120831,7 +120831,7 @@ case 2:return A.h(o.at(-1),r)}})
 return A.j($async$VC,r)},
 aTd(){var s,r,q,p=this.chN()
 if(p!=null)return p.r.gh(0)===B.il
-s=this.aYv("https://belluga.app")
+s=this.aYv("https://bellugademo.site")
 if(s==null||s.length===0)return!1
 r=$.aA().V(0,t.ou).a
 r=r==null?null:r.a
@@ -123198,7 +123198,7 @@ a4=p.a
 a5=1
 case 3:o=p.b
 if(o===$)o=p.b=new A.Bn(a4,A.P9(null))
-n=B.b.k("https://belluga.app")
+n=B.b.k("https://bellugademo.site")
 m=A.d2(n)
 l=!0
 if(m!=null)if(m.gmc())l=m.gc2()!=="http"&&m.gc2()!=="https"||B.b.k(m.gbK(m)).length===0
@@ -123212,7 +123212,7 @@ case 6:i=a7
 h=B.aF.FQ(i.a,"landlord tenants")
 g=B.aF.JQ(i.a,"landlord tenants")
 for(l=g.length,f=0;f<g.length;g.length===l||(0,A.Q)(g),++f){e=g[f]
-d=B.aEV.cCC(e,p.bWh("https://belluga.app"))
+d=B.aEV.cCC(e,p.bWh("https://bellugademo.site"))
 if(d==null)continue
 c=d.a
 b=c.b
@@ -154113,7 +154113,7 @@ p=r.f
 p.p(s)
 if(q.a.r.gh(0)===B.ko){if(s)p.p(!1)
 return}r.a9v(s)},
-c8t(){var s,r,q,p,o,n,m,l,k,j,i,h=A.z(t.N,t.PY),g=this.cfg("https://belluga.app")
+c8t(){var s,r,q,p,o,n,m,l,k,j,i,h=A.z(t.N,t.PY),g=this.cfg("https://bellugademo.site")
 try{o=this.b.a
 o===$&&A.b()
 s=o
@@ -154284,7 +154284,7 @@ case 3:case 1:return A.i(q,r)}})
 return A.j($async$a6X,r)},
 No(){var s=0,r=A.k(t.H),q,p=this,o,n
 var $async$No=A.f(function(a,b){if(a===1)return A.h(b,r)
-for(;;)switch(s){case 0:n=p.ang("/admin","https://belluga.app")
+for(;;)switch(s){case 0:n=p.ang("/admin","https://bellugademo.site")
 if(n==null){o=p.c
 o.toString
 p.atQ("O endere\xe7o da administra\xe7\xe3o do landlord \xe9 inv\xe1lido. Tente novamente.",A.BT(o))
@@ -154376,7 +154376,7 @@ s=B.b.t(b,"://")
 r=A.xg()
 q=A.d2(r.ghr(r))
 r=q==null
-p=r?this.asf("https://belluga.app"):q
+p=r?this.asf("https://bellugademo.site"):q
 if(s)o=j.gc2().toLowerCase()
 else o=p==null?k:p.gc2().toLowerCase()
 n=o==="http"
@@ -155807,7 +155807,7 @@ s=p.a
 r=s.gh(0)
 s=r==null?s.a:r
 if((s==null?B.Tv:s)!==B.Kq)return!1
-q=this.bwI("https://belluga.app")
+q=this.bwI("https://bellugademo.site")
 return q!=null&&p.c.gh(0)===q},
 anB(){var s=this,r=s.as
 r===$&&A.b()
